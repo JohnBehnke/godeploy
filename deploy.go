@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 )
 
 func isDir(path string) bool {
@@ -54,7 +55,7 @@ func uploadDirectory(session *session.Session, progessBar *pb.ProgressBar, bucke
 			if isDir(pathToCheck) {
 				uploadDirectory(session, progessBar, d.Name()+"/", pathToCheck+"/")
 			} else {
-				uploadFile(session, progessBar, "testjlb", bucketPrefix, dirPath, d.Name())
+				uploadFile(session, progessBar, "behnke.xyz", bucketPrefix, dirPath, d.Name())
 			}
 		}
 	}
@@ -78,38 +79,19 @@ func uploadFile(session *session.Session, progressBar *pb.ProgressBar, bucket st
 		fmt.Fprint(os.Stderr, "Error %v\n", err)
 		os.Exit(1)
 	}
-	// fmt.Println(t)
 	progressBar.Increment()
 }
 
 func main() {
 	const scriptName string = "setup.sh"
 	const resumeName string = "JohnBehnkeResume.pdf"
-	const tempPath string = "/tmp/deployStaging"
 	const resumePath string = "/Users/john/Documents/Work/Resumes/Latest/"
 	const installScriptPath string = "/Users/john/Documents/Code/Personal/EasyDevTools"
 	const personalSitePath string = "/Users/john/Documents/Code/Personal/johnbehnke.github.io/"
-
-	// uploadFile(sess, "testjlb", "/", filePath, fileName)
-	// serviceClient := s3.New(sess)
-
-	// flag.StringVar(&bucket, "b", "", "Bucket Name.")
-	// flag.StringVar(&key, "k", "", "Object key name.")
-	// flag.Parse()
-
-	// t, err := serviceClient.PutObject(&s3.PutObjectInput{
-	//  Bucket: aws.String(bucket),
-	//  Key:    aws.String(key),
-	//  Body:   os.Stdin,
-	// })
-	// fmt.Print(t)
-	// if err != nil {
-	//  fmt.Fprint(os.Stderr, "Error %v\n", err)
-	//  os.Exit(1)
-	// }
-
-	shouldCopy := flag.Bool("c", false, "Copy new files to site dir")
-	shouldUpload := flag.Bool("u", false, "Upload site to AWS Bucket")
+	var shouldPush string
+	shouldCopy := flag.Bool("copy", false, "Copy new files to site dir")
+	shouldUpload := flag.Bool("upload", false, "Upload site to AWS Bucket")
+	flag.StringVar(&shouldPush, "commit", "", "Commit message to be used in a push")
 	flag.Parse()
 
 	if *shouldCopy {
@@ -195,6 +177,28 @@ func main() {
 
 		uploadDirectory(sess, progressBar, "", personalSitePath)
 		progressBar.FinishPrint("All Files uploaded! 🍻")
+
+	}
+
+	if shouldPush != "" {
+
+		cmd := "git"
+		args := []string{"-C", "/Users/john/Documents/Code/Personal/johnbehnke.github.io/", "add", "."}
+		args2 := []string{"-C", "/Users/john/Documents/Code/Personal/johnbehnke.github.io/", "commit", "-m", shouldPush}
+		args3 := []string{"-C", "/Users/john/Documents/Code/Personal/johnbehnke.github.io/", "push"}
+
+		if err := exec.Command(cmd, args...).Run(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := exec.Command(cmd, args2...).Run(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := exec.Command(cmd, args3...).Run(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 
 	}
 }
