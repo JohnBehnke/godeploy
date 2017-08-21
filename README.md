@@ -18,7 +18,9 @@ This could totaly be done in a bash script in about 10 lines. Thats actaully wha
 ## Usage
 
 `-copy` Copies files from outside the site directory into the site directory
+
 `-upload` Uploads the contents of the site directory folder to an AWS Bucket
+
 `-commit` Does the git dance (add, commit, push). You can add a commit message here too
 
 ## Example Usage
