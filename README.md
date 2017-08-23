@@ -1,4 +1,4 @@
-# SiteDeploy
+# Go Deploy
 
 Just a small tool for deploying my site to AWS.
 
@@ -13,7 +13,7 @@ This could totaly be done in a bash script in about 10 lines. Thats actaully wha
 
 ## Running
 
-`./SiteDeploy FLAGS`
+`./godeploy FLAGS`
 
 ## Usage
 
@@ -25,6 +25,6 @@ This could totaly be done in a bash script in about 10 lines. Thats actaully wha
 
 ## Example Usage
 
- `./SiteDeploy -copy -upload -commit "Adding new easter eggs to site"
+ `./godeploy -copy -upload -commit "Adding new easter eggs to site"`
  
 
