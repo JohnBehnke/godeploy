@@ -1,0 +1,10 @@
+bucket: jlbtest1
+region: us-east-1
+files:
+  test: /Users/john/Documents/Code/Personal/SiteDeploy/test.txt
+
+ignore:
+  - .DS_Store
+  - .git
+  - .gitignore
+  - SiteDeploy
