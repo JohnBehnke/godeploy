@@ -165,7 +165,7 @@ func main() {
 	var config Config
 	yamlFile, err := ioutil.ReadFile("config.yaml")
 	if err != nil {
-		fmt.Printf("yamlFile.Get err   #%v ", err)
+		fmt.Printf("yamlFile.Get err #%v ", err)
 	}
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
