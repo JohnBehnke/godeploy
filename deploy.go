@@ -84,7 +84,7 @@ func uploadDirectory(session *session.Session, progessBar *pb.ProgressBar, bucke
 		var pathToCheck = strings.Join([]string{dirPath, d.Name()}, "/")
 		if !exists(ignore, d.Name()) {
 			if isDir(pathToCheck) {
-				uploadDirectory(session, progessBar, d.Name()+"/", pathToCheck+"/", ignore, bucket)
+				uploadDirectory(session, progessBar, bucketPrefix+d.Name()+"/", pathToCheck+"/", ignore, bucket)
 			} else {
 				uploadFile(session, progessBar, bucket, bucketPrefix, dirPath, d.Name())
 			}
@@ -122,6 +122,7 @@ func uploadFile(session *session.Session, progressBar *pb.ProgressBar, bucket st
 		fmt.Fprint(os.Stderr, "Error %v\n", err)
 		os.Exit(1)
 	}
+
 	progressBar.Increment()
 }
 
@@ -176,8 +177,6 @@ func main() {
 		log.Fatal(err)
 	}
 	var localPath string = dir
-
-	fmt.Println(getFileCount(localPath, config.Ignore))
 
 	if *shouldCopy {
 		copyFiles(localPath, config.Files)
