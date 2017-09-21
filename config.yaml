@@ -1,0 +1,11 @@
+bucket: behnke.xyz
+region: us-east-1
+files:
+  test: /Users/john/Documents/Code/Personal/SiteDeploy/test.txt
+  .: /Users/john/Desktop/my_cool_meme.png
+
+ignore:
+  - .DS_Store
+  - .git
+  - .gitignore
+  - SiteDeploy

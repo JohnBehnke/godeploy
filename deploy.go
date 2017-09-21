@@ -111,6 +111,7 @@ func uploadFile(session *session.Session, progressBar *pb.ProgressBar, bucket st
 	if path.Ext(filePath+fileName) == ".css" {
 		fileType = "text/css"
 	}
+
 	_, err = serviceClient.PutObject(&s3.PutObjectInput{
 		Bucket:        aws.String(bucket),
 		Key:           aws.String(bucketPrefix + fileName),
@@ -159,6 +160,7 @@ func main() {
 	var shouldPush string
 	shouldCopy := flag.Bool("copy", false, "Copy new files to site dir")
 	shouldUpload := flag.Bool("upload", false, "Upload site to AWS Bucket")
+	shouldDelete := flag.Bool("delete", false, "Delete the contents of the AWS buckets")
 	flag.StringVar(&shouldPush, "commit", "", "Commit message to be used in a push")
 	flag.Parse()
 
@@ -180,6 +182,39 @@ func main() {
 
 	if *shouldCopy {
 		copyFiles(localPath, config.Files)
+	}
+
+	if *shouldDelete {
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(config.Region)})
+		serviceClient := s3.New(sess)
+
+		resp, err := serviceClient.ListObjects(&s3.ListObjectsInput{Bucket: aws.String(config.Bucket)})
+
+		if err != nil {
+			// exitErrorf("Unable to list items in bucket %q, %v", bucket, err)
+		}
+
+		for _, item := range resp.Contents {
+
+			if !strings.Contains(*item.Key, "cdn") && !strings.Contains(*item.Key, "s3") {
+				fmt.Println("Name:         ", *item.Key)
+				fmt.Println("Last modified:", *item.LastModified)
+				fmt.Println("Size:         ", *item.Size)
+				fmt.Println("Storage class:", *item.StorageClass)
+				fmt.Println("")
+				input := &s3.DeleteObjectInput{
+					Bucket: aws.String(config.Bucket),
+					Key:    aws.String(*item.Key),
+				}
+
+				result, err := serviceClient.DeleteObject(input)
+				if err != nil {
+					fmt.Println(err)
+				}
+				fmt.Println(result)
+			}
+		}
+
 	}
 	if *shouldUpload {
 
