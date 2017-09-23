@@ -2,6 +2,7 @@
 
 Just a small tool for deploying my site to AWS.
 
+![godeploy](https://raw.githubusercontent.com/JohnBehnke/godeploy/master/godeploy.png)
 
 ## Why Go?
  
