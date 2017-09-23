@@ -12,7 +12,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -26,14 +25,6 @@ type Config struct {
 	Region string            `yaml:"region"`
 	Files  map[string]string `yaml:"files"`
 	Ignore []string          `yaml:"ignore"`
-}
-
-func testForError(err error) {
-	if err != nil {
-		fmt.Println("w")
-		fmt.Println(err)
-		os.Exit(1)
-	}
 }
 
 //Determine if an item at a given path is a directory or not
@@ -50,14 +41,17 @@ func isDir(path string) bool {
 func getFileCount(path string, ignore []string) int {
 	count := 0
 	files, err := ioutil.ReadDir(path)
-	testForError(err)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	for _, d := range files {
 		var pathToCheck = strings.Join([]string{path, d.Name()}, "/")
 		if !exists(ignore, d.Name()) {
 			if isDir(pathToCheck) {
 				count = count + getFileCount(pathToCheck+"/", ignore)
 			} else {
-				count = count + 1
+				count += 1
 			}
 		}
 	}
@@ -70,6 +64,7 @@ func exists(testingArray []string, target string) bool {
 	for x := range testingArray {
 		if testingArray[x] == target {
 			returnValue = true
+			break
 		}
 
 	}
@@ -79,7 +74,10 @@ func exists(testingArray []string, target string) bool {
 //Upload the contents of a directory to AWS S3
 func uploadDirectory(session *session.Session, progessBar *pb.ProgressBar, bucketPrefix string, dirPath string, ignore []string, bucket string) {
 	files, err := ioutil.ReadDir(dirPath)
-	testForError(err)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	for _, d := range files {
 		var pathToCheck = strings.Join([]string{dirPath, d.Name()}, "/")
 		if !exists(ignore, d.Name()) {
@@ -120,11 +118,53 @@ func uploadFile(session *session.Session, progressBar *pb.ProgressBar, bucket st
 		ContentLength: aws.Int64(size),
 	})
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Error %v\n", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	progressBar.Increment()
+}
+
+func deleteFiles(region string, bucket string) {
+	fmt.Println("Deleting Files from s3...")
+
+	sess, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	serviceClient := s3.New(sess)
+
+	resp, err := serviceClient.ListObjects(&s3.ListObjectsInput{Bucket: aws.String(bucket)})
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	var count = 0
+
+	for _, item := range resp.Contents {
+		if !strings.Contains(*item.Key, "cdn") && !strings.Contains(*item.Key, "s3") {
+			count += 1
+		}
+	}
+	progressBar := pb.StartNew(count)
+	progressBar.Format("<=👉 >")
+
+	for _, item := range resp.Contents {
+
+		if !strings.Contains(*item.Key, "cdn") && !strings.Contains(*item.Key, "s3") {
+			input := &s3.DeleteObjectInput{
+				Bucket: aws.String(bucket),
+				Key:    aws.String(*item.Key),
+			}
+
+			_, err := serviceClient.DeleteObject(input)
+			if err != nil {
+				fmt.Println(err)
+			}
+			progressBar.Increment()
+		}
+
+	}
+
+	progressBar.FinishPrint("Files deleted! 🍻")
 }
 
 func copyFiles(localDir string, filesToCopy map[string]string) {
@@ -138,17 +178,29 @@ func copyFiles(localDir string, filesToCopy map[string]string) {
 			os.Remove(strings.Join([]string{localDir, targetPath, targetFile}, "/"))
 		}
 		source, err := os.Open(targetPayload)
-		testForError(err)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		defer source.Close()
 
 		destination, err := os.Create(strings.Join([]string{localDir, targetPath, targetFile}, "/"))
-		testForError(err)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		defer destination.Close()
 
 		_, err = io.Copy(destination, source)
-		testForError(err)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		err = destination.Sync()
-		testForError(err)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		progressBar.Increment()
 
 	}
@@ -167,16 +219,19 @@ func main() {
 	var config Config
 	yamlFile, err := ioutil.ReadFile("config.yaml")
 	if err != nil {
-		fmt.Printf("yamlFile.Get err #%v ", err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	var localPath string = dir
 
@@ -185,41 +240,15 @@ func main() {
 	}
 
 	if *shouldDelete {
-		sess, err := session.NewSession(&aws.Config{Region: aws.String(config.Region)})
-		serviceClient := s3.New(sess)
-
-		resp, err := serviceClient.ListObjects(&s3.ListObjectsInput{Bucket: aws.String(config.Bucket)})
-
-		if err != nil {
-			// exitErrorf("Unable to list items in bucket %q, %v", bucket, err)
-		}
-
-		for _, item := range resp.Contents {
-
-			if !strings.Contains(*item.Key, "cdn") && !strings.Contains(*item.Key, "s3") {
-				fmt.Println("Name:         ", *item.Key)
-				fmt.Println("Last modified:", *item.LastModified)
-				fmt.Println("Size:         ", *item.Size)
-				fmt.Println("Storage class:", *item.StorageClass)
-				fmt.Println("")
-				input := &s3.DeleteObjectInput{
-					Bucket: aws.String(config.Bucket),
-					Key:    aws.String(*item.Key),
-				}
-
-				result, err := serviceClient.DeleteObject(input)
-				if err != nil {
-					fmt.Println(err)
-				}
-				fmt.Println(result)
-			}
-		}
-
+		deleteFiles(config.Region, config.Bucket)
 	}
 	if *shouldUpload {
 
 		sess, err := session.NewSession(&aws.Config{Region: aws.String(config.Region)})
-		testForError(err)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		fmt.Println("Uploading Files")
 		progressBar := pb.StartNew(getFileCount(localPath, config.Ignore))
 		progressBar.Format("<=👉 >")
